@@ -2,7 +2,9 @@
 #include <asio.hpp>
 #include <iostream>
 #include <memory>
+#include "resp_types.hpp"
 #include "parse_resp.hpp"
+#include "execute.hpp"
 
 using asio::ip::tcp;
 
@@ -37,17 +39,20 @@ private:
                 
                 const char* buf = buffer_.data();
 
-                std::vector<RespToken> resp = parse_resp(buf, length);
+                std::vector<RespToken> values = parse_resp(buf, length);
 
                 const char* enum2str[] = { "SIMPLE_STR", "SIMPLE_ERR", "INTEGER", "BULK_STR" };
 
-                for (int i = 0; i < resp.size(); i++) {
-                    std::cout << "type: " << enum2str[static_cast<int>(resp[i].type)] << ", value: " << resp[i].value << std::endl;
-                }                
-                
+                std::string response = execute_command(values);
+                // for (int i = 0; i < resp.size(); i++) {
+                    
+                //     std::cout << "type: " << enum2str[static_cast<int>(resp[i].type)] << ", value: " << resp[i].value << std::endl;
+                // }
+                std::cout << response << std::endl;
+ 
                 asio::async_write(
                     socket_,
-                    asio::buffer("+OK\r\n"),
+                    asio::buffer(response),
                     [this, self](std::error_code ec, std::size_t)
                     {
                         if (!ec)
