@@ -2,8 +2,8 @@
 #include <asio.hpp>
 #include <iostream>
 #include <memory>
-#include "resp_types.hpp"
-#include "parse_resp.hpp"
+#include "resp/types.hpp"
+#include "resp/parse.hpp"
 #include "execute.hpp"
 
 using asio::ip::tcp;
