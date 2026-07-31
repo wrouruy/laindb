@@ -1,9 +1,13 @@
 #define ASIO_STANDALONE
 #include <asio.hpp>
 #include <iostream>
+#include <string_view>
 #include <memory>
-#include "resp/types.hpp"
+#include <vector>
+#include <array>
+
 #include "resp/parse.hpp"
+#include "storage/hashtable.hpp"
 #include "execute.hpp"
 
 using asio::ip::tcp;
@@ -23,43 +27,33 @@ public:
     }
 
 private:
+    HashTable db;
+
     void read()
     {
         auto self = shared_from_this();
-
         socket_.async_read_some(
             asio::buffer(buffer_),
-            [this, self](std::error_code ec, std::size_t length)
-            {
-                if (ec)
-                {
-                    std::cout << "Client disconnected\n";
+            [this, self](std::error_code ec, std::size_t length) {
+                if (ec) {
+                    std::cout << "Client disconnected" << std::endl;
                     return;
                 }
-                
-                const char* buf = buffer_.data();
 
-                std::vector<RespToken> values = parse_resp(buf, length);
+                std::string buf = buffer_.data();
 
-                const char* enum2str[] = { "SIMPLE_STR", "SIMPLE_ERR", "INTEGER", "BULK_STR" };
+                std::vector<RespToken> tokens = parse_resp(buf, length);
+                std::string response = execute_command(tokens, &db);
 
-                std::string response = execute_command(values);
-                // for (int i = 0; i < resp.size(); i++) {
-                    
-                //     std::cout << "type: " << enum2str[static_cast<int>(resp[i].type)] << ", value: " << resp[i].value << std::endl;
-                // }
-                std::cout << response << std::endl;
- 
                 asio::async_write(
                     socket_,
                     asio::buffer(response),
-                    [this, self](std::error_code ec, std::size_t)
-                    {
-                        if (!ec)
-                            read();
+                    [this, self](std::error_code ec, std::size_t length) {
+                        if (!ec) read();
                     });
-            });
-    }
+            }
+        );
+    };
 
     tcp::socket socket_;
     std::array<char, 1024> buffer_;
@@ -68,11 +62,9 @@ private:
 int main()
 {
     asio::io_context io;
-
     tcp::acceptor acceptor(io, tcp::endpoint(tcp::v4(), 8080));
 
     std::function<void()> accept;
-
     accept = [&]()
     {
         acceptor.async_accept(
@@ -86,6 +78,5 @@ int main()
     };
 
     accept();
-
     io.run();
 }
