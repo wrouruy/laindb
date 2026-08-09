@@ -20,21 +20,19 @@ public:
     {
     }
 
-    void start()
+    void start(HashTable *db)
     {
         std::cout << "Client connected!\n";
-        read();
+        read(db);
     }
 
 private:
-    HashTable db;
-
-    void read()
+    void read(HashTable *db)
     {
         auto self = shared_from_this();
         socket_.async_read_some(
             asio::buffer(buffer_),
-            [this, self](std::error_code ec, std::size_t length) {
+            [this, self, db](std::error_code ec, std::size_t length) {
                 if (ec) {
                     std::cout << "Client disconnected" << std::endl;
                     return;
@@ -43,13 +41,13 @@ private:
                 std::string buf = buffer_.data();
 
                 std::vector<RespToken> tokens = parse_resp(buf, length);
-                std::string response = execute_command(tokens, &db);
+                std::string response = execute_command(tokens, db) + "\r\n";
 
                 asio::async_write(
                     socket_,
                     asio::buffer(response),
-                    [this, self](std::error_code ec, std::size_t length) {
-                        if (!ec) read();
+                    [this, self, db](std::error_code ec, std::size_t length) {
+                        if (!ec) read(db);
                     });
             }
         );
@@ -61,22 +59,24 @@ private:
 
 int main()
 {
+    HashTable db;
+
     asio::io_context io;
     tcp::acceptor acceptor(io, tcp::endpoint(tcp::v4(), 8080));
 
-    std::function<void()> accept;
-    accept = [&]()
+    std::function<void(HashTable *db)> accept;
+    accept = [&](HashTable *db)
     {
         acceptor.async_accept(
-            [&](std::error_code ec, tcp::socket socket)
+            [&, db](std::error_code ec, tcp::socket socket)
             {
                 if (!ec)
-                    std::make_shared<Session>(std::move(socket))->start();
+                    std::make_shared<Session>(std::move(socket))->start(db);
 
-                accept();
+                accept(db);
             });
     };
 
-    accept();
+    accept(&db);
     io.run();
 }

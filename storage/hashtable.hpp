@@ -43,7 +43,31 @@ class HashTable {
             buckets[index] = new_node;
         }
 
-        // void erase(std::string_view key);
+        int del(std::string_view key) {
+            size_t index = hash_func(key) % bucketsAmount;
+            Entry* node = buckets[index];
+
+            if (node == nullptr) return 0;
+
+            if (node->key == key) { // if remove a first element of a linked list
+                delete node;
+                buckets[index] = nullptr;
+                return 1;
+            }
+
+            Entry* prev;
+            while (node != nullptr) { // searching for a correct node in a linked list
+                if (node->key == key) { // if its the one we are looking for
+                    prev->next = node->next;
+                    delete node;
+                }
+
+                prev = node;
+                node = node->next;
+            }
+
+            return 0;
+        }
 };
 
 
