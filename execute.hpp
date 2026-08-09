@@ -1,7 +1,22 @@
+std::string PING_command (std::vector<RespToken> tokens, HashTable* db) {
+    return "+PONG";
+}
+
+std::string GET_command (std::vector<RespToken> tokens, HashTable* db) {
+    if (tokens.size() != 2)
+        return "-error: wrong number of arguments for 'get' command";
+
+    Entry* node = db->get(tokens[1].value);
+    if (node == nullptr)
+        return "$-1";
+
+    return "+" + node->value;
+}
+
 std::string SET_command (std::vector<RespToken> tokens, HashTable* db) {
     uint8_t size = tokens.size();
     if (size < 3)
-        return "-error: wrong number of arguments for 'set' command\r\n";
+        return "-error: wrong number of arguments for 'set' command";
 
     else if (size > 3)
         return "-error: syntax error";
@@ -11,18 +26,14 @@ std::string SET_command (std::vector<RespToken> tokens, HashTable* db) {
   
     db->set(key, val);
 
-    return "+OK\r\n";
+    return "+OK";
 }
 
-std::string GET_command (std::vector<RespToken> tokens, HashTable* db) {
+std::string DEL_command(std::vector<RespToken> tokens, HashTable* db) {
     if (tokens.size() != 2)
-        return "-error: wrong number of arguments for 'get' command";
+        return "-error: wrong number of arguments for 'del' command";
 
-    Entry* node = db->get(tokens[1].value);
-    if (!node)
-        return "$-1\r\n";
-
-    return "+" + node->value + "\r\n";
+    return ":" + std::to_string(db->del(tokens[1].value));
 }
 
 struct ExecCommand {
@@ -31,18 +42,22 @@ struct ExecCommand {
 };
 
 struct ExecCommand execute[] = {
+    { "PING", PING_command },
+    { "ping", PING_command },
+    
     { "GET", GET_command },
-    { "SET", SET_command }
+    { "SET", SET_command },
+    { "DEL", DEL_command }
 };
-uint8_t exec_len = 2;
+uint8_t exec_len = std::size(execute);
 
 std::string execute_command(std::vector<RespToken> tokens, HashTable* db) {
     if (tokens.size() < 1)
-        return "-error: empty command\r\n";
+        return "-error: empty command";
 
     for (int i = 0; i < exec_len; i++) {
         if (execute[i].command == tokens[0].value)
             return execute[i].func(tokens, db);
     }
-    return "-error: uknown command\r\n";
+    return "-error: uknown command";
 }
